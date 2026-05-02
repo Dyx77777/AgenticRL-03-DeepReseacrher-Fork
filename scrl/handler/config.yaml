@@ -1,5 +1,5 @@
 # Web Search Agent
-search_engine: "google" # "bing"
+search_engine: "google" # "google", "bing", "duckduckgo"
 search_top_k: 10
 search_region: "us"
 search_lang: "en"

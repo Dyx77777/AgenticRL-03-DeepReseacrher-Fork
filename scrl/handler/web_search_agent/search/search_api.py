@@ -2,6 +2,7 @@ import requests
 import json
 import http.client
 import time
+from ddgs import DDGS
 
 
 def web_search(query, config):
@@ -21,6 +22,13 @@ def web_search(query, config):
             subscription_key=config['azure_bing_search_subscription_key'],
             mkt=config['azure_bing_search_mkt'],
             top_k=config['search_top_k']
+        )
+    elif config['search_engine'] == 'duckduckgo':
+        return duckduckgo_search(
+            query=query,
+            top_k=config['search_top_k'],
+            region=config.get('search_region', 'us'),
+            lang=config.get('search_lang', 'en')
         )
 
 
@@ -89,5 +97,22 @@ def serper_google_search(
     return []
 
 
+def duckduckgo_search(query, top_k=10, region='us', lang='en'):
+    results = []
+    try:
+        with DDGS() as ddgs:
+            search_results = ddgs.text(query, region=region, max_results=top_k)
+            for r in search_results:
+                results.append({
+                    "title": r.get("title", ""),
+                    "link": r.get("href", ""),
+                    "snippet": r.get("body", "")
+                })
+        print("duckduckgo search success")
+    except Exception as e:
+        print(f"DuckDuckGo search error: {e}")
+    return results
+
+
 if __name__ == "__main__":
-    print(serper_google_search("test", "your serper key",1,"us","en"))
+    print(duckduckgo_search("DeepResearcher project", top_k=3))
