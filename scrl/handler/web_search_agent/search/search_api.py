@@ -2,7 +2,42 @@ import requests
 import json
 import http.client
 import time
+import threading
 from ddgs import DDGS
+
+_DDGS_SEMAPHORE = None
+_DDGS_MIN_INTERVAL = 1.0
+_DDGS_LAST_REQUEST_TIME = 0.0
+_DDGS_LOCK = threading.Lock()
+_DDGS_INITIALIZED = False
+
+
+def _ddgs_ensure_init(config):
+    global _DDGS_SEMAPHORE, _DDGS_MIN_INTERVAL, _DDGS_INITIALIZED
+    if not _DDGS_INITIALIZED:
+        _DDGS_SEMAPHORE = threading.Semaphore(config.get('duckduckgo_max_concurrent', 5))
+        _DDGS_MIN_INTERVAL = config.get('duckduckgo_min_interval', 1.0)
+        _DDGS_INITIALIZED = True
+
+
+def _ddgs_throttled_search(query, top_k, region, lang):
+    global _DDGS_LAST_REQUEST_TIME
+    with _DDGS_SEMAPHORE:
+        with _DDGS_LOCK:
+            elapsed = time.time() - _DDGS_LAST_REQUEST_TIME
+            if elapsed < _DDGS_MIN_INTERVAL:
+                time.sleep(_DDGS_MIN_INTERVAL - elapsed)
+            _DDGS_LAST_REQUEST_TIME = time.time()
+        with DDGS() as ddgs:
+            search_results = ddgs.text(query, region=region, max_results=top_k)
+            results = []
+            for r in search_results:
+                results.append({
+                    "title": r.get("title", ""),
+                    "link": r.get("href", ""),
+                    "snippet": r.get("body", "")
+                })
+            return results
 
 
 def web_search(query, config):
@@ -24,11 +59,13 @@ def web_search(query, config):
             top_k=config['search_top_k']
         )
     elif config['search_engine'] == 'duckduckgo':
+        _ddgs_ensure_init(config)
         return duckduckgo_search(
             query=query,
             top_k=config['search_top_k'],
             region=config.get('search_region', 'us'),
-            lang=config.get('search_lang', 'en')
+            lang=config.get('search_lang', 'en'),
+            max_retries=config.get('duckduckgo_max_retries', 5)
         )
 
 
@@ -97,21 +134,18 @@ def serper_google_search(
     return []
 
 
-def duckduckgo_search(query, top_k=10, region='us', lang='en'):
-    results = []
-    try:
-        with DDGS() as ddgs:
-            search_results = ddgs.text(query, region=region, max_results=top_k)
-            for r in search_results:
-                results.append({
-                    "title": r.get("title", ""),
-                    "link": r.get("href", ""),
-                    "snippet": r.get("body", "")
-                })
-        print("duckduckgo search success")
-    except Exception as e:
-        print(f"DuckDuckGo search error: {e}")
-    return results
+def duckduckgo_search(query, top_k=10, region='us', lang='en', max_retries=5):
+    for attempt in range(max_retries):
+        try:
+            results = _ddgs_throttled_search(query, top_k, region, lang)
+            print("duckduckgo search success")
+            return results
+        except Exception as e:
+            wait = min(2 ** attempt + 1, 30)
+            print(f"DuckDuckGo search error (attempt {attempt + 1}/{max_retries}): {e}, retrying in {wait}s")
+            time.sleep(wait)
+    print(f"DuckDuckGo search failed after {max_retries} retries: {query}")
+    return None
 
 
 if __name__ == "__main__":
