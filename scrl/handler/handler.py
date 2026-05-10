@@ -34,6 +34,9 @@ class Handler:
     def search_and_add_to_dict(self, search_query, cur_api_result_dict, cur_api_result_dict_lock):
         try:
             organic = web_search(search_query, self.agent_config)
+            if organic is None:
+                print(f"Search failed for query '{search_query}', skipping cache")
+                return
             with cur_api_result_dict_lock:
                 cur_api_result_dict[search_query] = {
                     'timestamp': time.time(),
@@ -83,10 +86,11 @@ class Handler:
         
         for api_future in concurrent.futures.as_completed(api_future_list):
             api_future.result()
-        
+
         for key in cur_api_result_dict:
-            self.api_result_dict[key] = cur_api_result_dict[key]
-            
+            if cur_api_result_dict[key]['organic']:
+                self.api_result_dict[key] = cur_api_result_dict[key]
+
         with open(self.agent_config["query_save_path"], 'w', encoding='utf-8') as f:
             json.dump(self.api_result_dict, f, indent=4, ensure_ascii=False)
         print("缓存已保存", flush=True)
@@ -161,9 +165,10 @@ class Handler:
             
             for api_future in concurrent.futures.as_completed(api_future_list):
                 api_future.result()
-            
+
             for key in cur_api_result_dict:
-                self.api_result_dict[key] = cur_api_result_dict[key]
+                if cur_api_result_dict[key]['organic']:
+                    self.api_result_dict[key] = cur_api_result_dict[key]
                 
             with open(self.agent_config["query_save_path"], 'w', encoding='utf-8') as f:
                 json.dump(self.api_result_dict, f, indent=4, ensure_ascii=False)

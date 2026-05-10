@@ -1,5 +1,5 @@
 # Web Search Agent
-search_engine: "google" # "bing"
+search_engine: "google" # "google", "bing", "duckduckgo"
 search_top_k: 10
 search_region: "us"
 search_lang: "en"
@@ -10,6 +10,11 @@ reading_agent_model: "qwen-plus"
 
 azure_bing_search_subscription_key: "key here if you use azure bing"
 azure_bing_search_mkt: "zh-CN" # "en-US"
+
+# DuckDuckGo settings (free search engine, rate-limited)
+duckduckgo_max_concurrent: 5   # max concurrent requests to DuckDuckGo
+duckduckgo_min_interval: 1.0   # min seconds between requests (per slot)
+duckduckgo_max_retries: 5      # max retries on rate limit errors
 
 query_save_path: "./scrl/handler/cache/search_result.json"
 
