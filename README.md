@@ -1,4 +1,4 @@
-# DeepResearcher: Scaling Deep Research via Reinforcement Learning in Real-world Environments
+# DeepResearcher: Scaling Deep Research via Reinforcement Learning in Real-world Environments-760stars
 
 This is the official repository for [DeepResearcher](https://arxiv.org/abs/2504.03160).
 ## 📝 Introduction
